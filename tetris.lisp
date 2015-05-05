@@ -97,7 +97,7 @@
 (defconstant +BETWEEN+ 5)
 
 
-(defparameter *timeout* 0.2)
+(defparameter *timeout* 0.5)
 
 
 
@@ -109,38 +109,44 @@
 		  (setf (aref board (+ x0 dx) (+ y0 dy))
 			(mino-color mino)))))))
 
+(defun mino-puttable-p (board shape x0 y0)
+  (let ((bw (array-dimension board 0))
+	(bh (array-dimension board 1))
+	(mw (array-dimension shape 0))
+	(mh (array-dimension shape 1)))
+    (loop for dx below mw always
+	 (loop for dy below mh never
+	      (and (aref shape dx dy)
+		   (or (not (< -1 (+ x0 dx) bw))
+		       (not (< -1 (+ y0 dy) bh))
+		       (aref board (+ x0 dx) (+ y0 dy))))))))
+    
+
 (defun check-going-down ()
   (with-board-params (x0 y0 mw mh bw bh pos mino board) *game*
-    (and (< (+ y0 mh) bh)
-	 (loop for dx below mw always
-	      (loop for dy below mh never
-		   (and (aref (mino-shape mino) dx dy)
-			(aref board (+ x0 dx) (+ y0 dy 1))))))))
+    (mino-puttable-p board (mino-shape mino) x0 (1+ y0))))
+
 (defun check-going-right ()
   (with-board-params (x0 y0 mw mh bw bh pos mino board) *game*
-    (and (< (+ x0 mw) bw)
-	 (loop for dx below mw always
-	      (loop for dy below mh never
-		   (and (aref (mino-shape mino) dx dy)
-			(aref board (+ x0 dx 1) (+ y0 dy))))))))
+    (mino-puttable-p board (mino-shape mino) (1+ x0) y0)))
+
 (defun check-going-left ()
   (with-board-params (x0 y0 mw mh bw bh pos mino board) *game*
-    (and (< 0 x0)
-	 (loop for dx below mw always
-	      (loop for dy below mh never
-		   (and (aref (mino-shape mino) dx dy)
-			(aref board (+ x0 dx -1) (+ y0 dy))))))))
-;; (defun check-rotating-right ()
-;;   (with-board-params (x0 y0 mw mh bw bh pos mino board) *game*
-;;     (let ((new-mino
-;;     (and (< (+ x0 mw) bw)
-;; 	 (loop for dx below mw always
-;; 	      (loop for dy below mh never
-;; 		   (and (aref (mino-shape mino) dx dy)
-;; 			(aref board (+ x0 dx 1) (+ y0 dy))))))))
+    (mino-puttable-p board (mino-shape mino) (1- x0) y0)))
+
+(defun check-rotating-right ()
+  (with-board-params (x0 y0 mw mh bw bh pos mino board) *game*
+    (mino-puttable-p board (rotate-shape-right (mino-shape mino)) x0 y0)))
+
+(defun check-rotating-left ()
+  (with-board-params (x0 y0 mw mh bw bh pos mino board) *game*
+    (mino-puttable-p board (rotate-shape-left (mino-shape mino)) x0 y0)))
 
 (defmacro game-position ()
   `(cadr (game-mino-and-position *game*)))
+
+(defmacro game-mino-shape ()
+  `(mino-shape (car (game-mino-and-position *game*))))
 
 (defun go-down ()
   (incf (second (game-position))))
@@ -148,6 +154,42 @@
   (incf (first (game-position))))
 (defun go-left ()
   (decf (first (game-position))))
+(defun rotate-right ()
+  (setf (game-mino-shape) (rotate-shape-right (game-mino-shape))))
+(defun rotate-left ()
+  (setf (game-mino-shape) (rotate-shape-left (game-mino-shape))))
+
+(defun eliminatable-lines ()
+  ;return indices of already filled rows
+  (let ((board (game-board *game*)))
+    (loop for y below (array-dimension board 1)
+       when (loop for x below (array-dimension board 0) always (aref board x y))
+       collect y)))
+
+(defun eliminate-lines (indices)
+  (when indices
+    (let ((board (game-board *game*)))
+      (destructuring-bind (w h) (array-dimensions board)
+	(declare (ignore h))
+	(loop repeat 3
+	   do (progn (loop for y in indices
+			do (loop for x below w
+			      do (setf (aref board x y)
+				       (nth (random 3) '(:red :green :yellow)))))
+		     (show-game)
+		     (sleep 0.1)))
+	(loop for y in indices
+	   do (loop for x below w
+		 do (setf (aref board x y)
+			  nil)))
+	(loop for y0 in (sort (copy-list indices) #'>)
+	   for dy from 0
+	   do (loop for y from (+ y0 dy) downto 1
+		 do (loop for x below w
+		       do (setf (aref board x y) (aref board x (1- y)))))
+	   do (loop for x below w
+		 do (setf (aref board x 0) nil)))
+	(show-game)))))
 
 (defun progress-game ()
   (with-slots (board next-mino mino-and-position) *game*
@@ -156,6 +198,7 @@
 	  (if (check-going-down)
 	      (go-down)
 	      (progn (put-mino)
+		     (eliminate-lines (eliminatable-lines))
 		     (setf mino-and-position nil))))
 	(setf mino-and-position
 	      (list next-mino (list 3 0))
@@ -210,6 +253,8 @@
 			 (go-left)))
 	     (:down (and (check-going-down)
 			 (go-down)))
+	     (#\space (and (check-rotating-right)
+			  (rotate-right)))
 	     ((#\q #\etx) (setf (game-overp *game*) t)))
 	   (when cmdchar
 	     (show-game))))

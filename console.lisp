@@ -5,6 +5,7 @@
 	   :write-at-cursor
 	   :write-at
 	   :move-to
+	   :+default-colors+
 	   :clear))
 
 (in-package :console)
@@ -33,6 +34,9 @@
 	(#\C :right)
 	(#\D :left)
 	(t :unknown)))))
+
+(defconstant +default-colors+
+  '(:black :red :green :yellow :blue :magenta :cyan :white))
 
 (defun init-default-colors ()
   (setf *colors*
