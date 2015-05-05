@@ -6,7 +6,8 @@
 	   :write-at
 	   :move-to
 	   :+default-colors+
-	   :clear))
+	   :clear
+	   :refresh))
 
 (in-package :console)
 
@@ -150,3 +151,6 @@
 
 (defun clear ()
   (charms:clear-window charms:*standard-window* :force-repaint t))
+
+(defun refresh ()
+  (charms:refresh-window charms:*standard-window*))

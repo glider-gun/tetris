@@ -228,8 +228,8 @@
 (defun progress-game-timer-func ()
   (unless (check-finish *game*)
     (progress-game)
-    (sb-ext:schedule-timer *timer* *timeout*))
-  (show-game))
+    (show-game)
+    (sb-ext:schedule-timer *timer* *timeout*)))
 
 
 (defun main ()
@@ -245,7 +245,7 @@
 	 collect (list c c :black))
     (sb-ext:schedule-timer *timer* *timeout*)
     (loop
-       (let ((cmdchar (console:get-command)))
+       do (let ((cmdchar (console:get-command)))
 	 (with-game-lock
 	   (case cmdchar
 	     (:right (and (check-going-right)
@@ -254,15 +254,19 @@
 			 (go-left)))
 	     (:down (and (check-going-down)
 			 (go-down)))
-	     (#\space (and (check-rotating-right)
-			  (rotate-right)))
-	     ((#\q #\etx) (setf (game-overp *game*) t)))
+	     (:up   (and (check-rotating-right)
+			 (rotate-right)))
+	     (#\space (and (check-rotating-left)
+			  (rotate-left)))
+	     ((#\q #\etx)
+	      (setf (game-overp *game*) t)
+	      (return)))
 	   (when cmdchar
 	     (show-game))))
-       (when (check-finish *game*)
-	 (show-game)
-	 (sleep 3)
-	 (return-from main)))))
+       until (check-finish *game*)
+       finally (progn (show-game) (sleep 3))))
+  (format t "~D~%" (game-score *game*))
+  (finish-output))
 
 (defun foo ()
   (console:with-color-console
@@ -309,7 +313,7 @@
 		      do (console:move-to (+ +LEFT+ board-w 2 +BETWEEN+ 6) (+ +TOP+ 2 y))
 		      do (loop for x below w do
 			      (if (aref (mino-shape mino) x y)
-				  (console:write-at-cursor (if (check-finish *game*) "@" "*") :color-pair (mino-color mino))
+				  (console:write-at-cursor "*" :color-pair (mino-color mino))
 				  (console:write-at-cursor " ")))))))
 	     (show-mino-in-progress ()
 	       (when (game-mino-and-position *game*)
@@ -328,4 +332,5 @@
     (show-mino-in-progress)
     (show-score)
     (when (check-finish *game*)
-      (show-game-over)))))
+      (show-game-over))
+    (console:refresh))))
