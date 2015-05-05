@@ -66,7 +66,7 @@
     (let ((new (make-array (list h w))))
       (loop for x below w do
 	   (loop for y below h do
-		(setf (aref new y (- w x 1)) (aref shape x y) )))
+		(setf (aref new (- h y 1) x) (aref shape x y) )))
       new)))
 
 (defun rotate-shape-left (shape)
@@ -74,7 +74,7 @@
     (let ((new (make-array (list h w))))
       (loop for x below w do
 	   (loop for y below h do
-		(setf (aref new (- h y 1) x) (aref shape x y) )))
+		(setf (aref new y (- w x 1)) (aref shape x y) )))
       new)))
 
 (defun random-mino ()
@@ -96,7 +96,9 @@
 (defconstant +TOP+ 3)
 (defconstant +BETWEEN+ 5)
 
-
+(defparameter +TOP-ROOM+ 4)
+(defparameter +BOARD-WIDTH+ 8)
+(defparameter +BOARD-HEIGHT+ 10)
 (defparameter *timeout* 0.5)
 
 
@@ -192,17 +194,23 @@
 	(incf (game-score *game*) (* 1000 (expt (length indices) 2)))
 	(show-game)))))
 
+(defun new-mino-y0 (shape)
+  (destructuring-bind (w h) (array-dimensions shape)
+    (- +TOP-ROOM+
+       (loop for y from (1- h) downto 0
+	  until (loop for x below w thereis (aref shape x y))
+	  finally (return y)))))
+
 (defun progress-game ()
   (with-slots (board next-mino mino-and-position) *game*
     (if mino-and-position
-	(destructuring-bind (mino position) mino-and-position
-	  (if (check-going-down)
-	      (go-down)
-	      (progn (put-mino)
-		     (eliminate-lines (eliminatable-lines))
-		     (setf mino-and-position nil))))
+	(if (check-going-down)
+	    (go-down)
+	    (progn (put-mino)
+		   (eliminate-lines (eliminatable-lines))
+		   (setf mino-and-position nil)))
 	(setf mino-and-position
-	      (list next-mino (list 3 0))
+	      (list next-mino (list 3 (new-mino-y0 (mino-shape next-mino))))
 	      next-mino
 	      (random-mino)))))
 
@@ -210,7 +218,7 @@
   (or (game-overp game)
       (let* ((board (game-board game))
 	     (w (array-dimension board 0)))
-	(loop for x below w thereis (aref board x 0)))))
+	(loop for x below w thereis (aref board x +TOP-ROOM+)))))
 
 (defmacro with-game-lock (&body body)
   `(sb-thread:with-mutex ((game-lock *game*))
@@ -234,7 +242,7 @@
 
 (defun main ()
   (setf *game* (make-game :board
-			  (make-array '(8 10) :initial-element nil)
+			  (make-array (list +BOARD-WIDTH+ (+ +BOARD-HEIGHT+ +TOP-ROOM+)) :initial-element nil)
 			  :next-mino (random-mino)
 			  :mino-and-position nil
 			  :lock (sb-thread:make-mutex))
@@ -285,9 +293,9 @@
 (defun show-game ()
   (destructuring-bind (w h) (array-dimensions (game-board *game*))
     (labels ((show-board ()
-	       (loop for y below h do
+	       (loop for y from +TOP-ROOM+ below h do
 		    (progn
-		      (console:move-to +LEFT+ (+ +TOP+ y))
+		      (console:move-to +LEFT+ (+ +TOP+ (- y +TOP-ROOM+)))
 		      (console:write-at-cursor "|" :color-pair :white))
 		    (loop for x below w
 		       for c = (aref (game-board *game*) x y)
@@ -295,7 +303,7 @@
 			      (console:write-at-cursor #\* :color-pair c)
 			      (console:write-at-cursor " ")))
 		    (console:write-at-cursor "|" :color-pair :white))
-	       (console:move-to +LEFT+ (+ +TOP+ h))
+	       (console:move-to +LEFT+ (+ +TOP+ (- +TOP-ROOM+) h))
 	       (console:write-at-cursor "+" :color-pair :white)
 	       (loop for x below w
 		  do (console:write-at-cursor "-" :color-pair :white))
@@ -320,7 +328,7 @@
 		 (with-board-params (x0 y0 mw mh bw bh pos mino board) *game*
 		   (loop for dx below mw do
 			(loop for dy below mh do
-			     (progn (console:move-to (+ +LEFT+ 1 x0 dx) (+ +TOP+ y0 dy))
+			     (progn (console:move-to (+ +LEFT+ 1 x0 dx) (+ +TOP+ y0 (- +TOP-ROOM+) dy))
 				    (when (aref (mino-shape mino) dx dy)
 				      (console:write-at-cursor "*" :color-pair (mino-color mino)))))))))
 	     (show-game-over ()
