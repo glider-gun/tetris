@@ -7,5 +7,6 @@
   :serial t
   :depends-on (:cl-charms)
   :components ((:file "package")
+	       (:file "console")
                (:file "tetris")))
 
