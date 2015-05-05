@@ -182,13 +182,11 @@
     (sb-ext:timeout () nil)))
 
 (defun progress-game-timer-func ()
-  (handler-case
-      (unless (check-finish *game*)
-	(progress-game)
-	(show-game)
-	(sb-ext:schedule-timer *timer* *timeout*))
-    (sb-ext:timeout ()
-      (sb-ext:schedule-timer *timer* *timeout*))))
+  (unless (check-finish *game*)
+    (progress-game)
+    (sb-ext:schedule-timer *timer* *timeout*))
+  (show-game))
+
 
 (defun main ()
   (setf *game* (make-game :board
@@ -197,36 +195,28 @@
 			  :mino-and-position nil
 			  :lock (sb-thread:make-mutex))
 	*timer* (sb-ext:make-timer #'progress-game-timer-func))
-  (progn
-    (unwind-protect
-	 (console:with-color-console
-	     nil
-	     (loop for c in '(:black :red :green :yellow :blue :magenta :cyan :white)
-		collect (list c c :black))
-	   (sb-ext:schedule-timer *timer* *timeout*)
-	   (loop
-	      (let ((cmdchar (console:get-command)))
-		(with-game-lock
-		  (case cmdchar
-		    (:right (and (check-going-right)
-				 (go-right)))
-		    (:left (and (check-going-left)
-				(go-left)))
-		    (:down (and (check-going-down)
-				(go-down)))
-		    ((#\q #\etx) (setf (game-overp *game*) t)))
-		  (when cmdchar
-		    (show-game))))
-	      (when (check-finish *game*)
-		(sleep 0.5)
-		(sb-ext:unschedule-timer *timer*)
-		(show-game)
-		(charms:flash-console)
-		(charms:beep-console)
-		(sleep 3)
-		(return-from main (values)))))
-      (sb-ext:unschedule-timer *timer*)
-      (setf (game-overp *game*) t))))
+  (console:with-color-console
+      nil
+      (loop for c in '(:black :red :green :yellow :blue :magenta :cyan :white)
+	 collect (list c c :black))
+    (sb-ext:schedule-timer *timer* *timeout*)
+    (loop
+       (let ((cmdchar (console:get-command)))
+	 (with-game-lock
+	   (case cmdchar
+	     (:right (and (check-going-right)
+			  (go-right)))
+	     (:left (and (check-going-left)
+			 (go-left)))
+	     (:down (and (check-going-down)
+			 (go-down)))
+	     ((#\q #\etx) (setf (game-overp *game*) t)))
+	   (when cmdchar
+	     (show-game))))
+       (when (check-finish *game*)
+	 (show-game)
+	 (sleep 3)
+	 (return-from main)))))
 
 (defun foo ()
   (console:with-color-console
