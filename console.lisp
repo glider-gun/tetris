@@ -36,8 +36,8 @@
 	(#\D :left)
 	(t :unknown)))))
 
-(defconstant +default-colors+
-  '(:black :red :green :yellow :blue :magenta :cyan :white))
+(alexandria:define-constant +default-colors+
+  '(:black :red :green :yellow :blue :magenta :cyan :white) :test #'equal)
 
 (defun init-default-colors ()
   (setf *colors*
