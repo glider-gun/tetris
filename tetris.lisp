@@ -1,12 +1,5 @@
 ;;;; tetris.lisp
-(declaim (optimize (debug 3) (speed 0)))
-
-;;
-
 (in-package #:tetris)
-
-;;; "tetris" goes here. Hacks and glory await!
-
 
 (deftype color ()
   '(member :black :red :green :yellow :blue :magenta :cyan :white :orange :purple :normal))
@@ -227,18 +220,11 @@
 (defvar *game*)
 (defvar *timer*)
 
-(defun get-command-char ()
-  (handler-case
-      (sb-ext:with-timeout *timeout*
-	(peek-char))
-    (sb-ext:timeout () nil)))
-
 (defun progress-game-timer-func ()
   (unless (check-finish *game*)
     (progress-game)
     (show-game)
     (sb-ext:schedule-timer *timer* *timeout*)))
-
 
 (defun main ()
   (setf *random-state* (make-random-state t))
@@ -276,20 +262,6 @@
        finally (progn (show-game) (sleep 3))))
   (format t "~D~%" (game-score *game*))
   (finish-output))
-
-(defun foo ()
-  (console:with-color-console
-      nil
-      '((:blue :blue :black)
-	(:red :red :black))
-      (loop for i below 5
-	 for cmd = (loop for a = (console:get-command)
-			until a finally (return a))
-	 do (console:write-at-cursor cmd :color-pair :red)
-	 do (console:write-at-cursor " "))))
-
-;; (foo)
-  
 
 (defun show-game ()
   (destructuring-bind (w h) (array-dimensions (game-board *game*))
