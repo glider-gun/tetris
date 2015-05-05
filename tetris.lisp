@@ -189,7 +189,7 @@
 		       do (setf (aref board x y) (aref board x (1- y)))))
 	   do (loop for x below w
 		 do (setf (aref board x 0) nil)))
-	(incf (game-score *game*) 1000)
+	(incf (game-score *game*) (* 1000 (expt (length indices) 2)))
 	(show-game)))))
 
 (defun progress-game ()
