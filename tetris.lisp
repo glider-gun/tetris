@@ -207,8 +207,8 @@
 	(if (check-going-down)
 	    (go-down)
 	    (progn (put-mino)
-		   (eliminate-lines (eliminatable-lines))
-		   (setf mino-and-position nil)))
+		   (setf mino-and-position nil)
+		   (eliminate-lines (eliminatable-lines))))
 	(setf mino-and-position
 	      (list next-mino (list 3 (new-mino-y0 (mino-shape next-mino))))
 	      next-mino
@@ -218,7 +218,7 @@
   (or (game-overp game)
       (let* ((board (game-board game))
 	     (w (array-dimension board 0)))
-	(loop for x below w thereis (aref board x +TOP-ROOM+)))))
+	(loop for x below w thereis (aref board x (1- +TOP-ROOM+))))))
 
 (defmacro with-game-lock (&body body)
   `(sb-thread:with-mutex ((game-lock *game*))
@@ -293,16 +293,17 @@
 (defun show-game ()
   (destructuring-bind (w h) (array-dimensions (game-board *game*))
     (labels ((show-board ()
-	       (loop for y from +TOP-ROOM+ below h do
+	       (loop for y from (- +TOP-ROOM+ +TOP+) below h do
 		    (progn
 		      (console:move-to +LEFT+ (+ +TOP+ (- y +TOP-ROOM+)))
-		      (console:write-at-cursor "|" :color-pair :white))
+			(console:write-at-cursor (if (>= y +TOP-ROOM+) "|" " ") :color-pair :white))
 		    (loop for x below w
 		       for c = (aref (game-board *game*) x y)
 		       do (if c
 			      (console:write-at-cursor #\* :color-pair c)
 			      (console:write-at-cursor " ")))
-		    (console:write-at-cursor "|" :color-pair :white))
+		    (when (>= y +TOP-ROOM+)
+		      (console:write-at-cursor "|" :color-pair :white)))
 	       (console:move-to +LEFT+ (+ +TOP+ (- +TOP-ROOM+) h))
 	       (console:write-at-cursor "+" :color-pair :white)
 	       (loop for x below w
