@@ -343,3 +343,9 @@
     (when (check-finish *game*)
       (show-game-over))
     (console:refresh))))
+
+(defun make-tetris-command (&optional (name "tetris"))
+  (sb-ext:save-lisp-and-die
+   name
+   :toplevel #'main
+   :executable t))

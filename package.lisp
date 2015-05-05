@@ -1,5 +1,7 @@
 ;;;; package.lisp
 
 (defpackage #:tetris
-  (:use #:cl))
+  (:use #:cl)
+  (:export :main
+	   :make-tetris-command))
 
