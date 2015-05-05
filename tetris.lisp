@@ -347,5 +347,6 @@
 (defun make-tetris-command (&optional (name "tetris"))
   (sb-ext:save-lisp-and-die
    name
+   :compression t
    :toplevel #'main
    :executable t))
