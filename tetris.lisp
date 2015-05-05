@@ -241,6 +241,7 @@
 
 
 (defun main ()
+  (setf *random-state* (make-random-state t))
   (setf *game* (make-game :board
 			  (make-array (list +BOARD-WIDTH+ (+ +BOARD-HEIGHT+ +TOP-ROOM+)) :initial-element nil)
 			  :next-mino (random-mino)
