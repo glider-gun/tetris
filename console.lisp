@@ -7,7 +7,8 @@
 	   :move-to
 	   :+default-colors+
 	   :clear
-	   :refresh))
+	   :refresh
+	   :can-change-color))
 
 (in-package :console)
 
@@ -150,3 +151,6 @@
 
 (defun refresh ()
   (charms:refresh-window charms:*standard-window*))
+
+(defun can-change-color ()
+  (/= 0 (charms/ll:can-change-color)))

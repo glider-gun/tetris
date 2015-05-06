@@ -47,9 +47,6 @@
     ((1 1)
      (1 1)))))
 
-;; (defvar *mino-colors* '(:cyan :blue :orange :yellow :green :purple :red))
-(defvar *mino-colors* '(:cyan :blue :magenta :yellow :green :white :red))
-
 (defstruct mino
   (shape #2A() :type array)
   (color :normal :type color))
@@ -226,6 +223,27 @@
     (show-game)
     (sb-ext:schedule-timer *timer* *timeout*)))
 
+(alexandria:define-constant +additional-colors+
+  '((:orange 1000 550 0)
+    (:purple 1000 0 1000))
+  :test #'equal)
+
+(alexandria:define-constant +colors+
+    '(:black :red :green :yellow :blue :magenta :cyan :white :orange :purple)
+  :test #'equal
+  :documentation "default colors for showing game")
+
+(alexandria:define-constant +alternative-colors+
+  '(:black :red :green :yellow :blue :magenta :cyan :white)
+  :test #'equal
+  :documentation "colors for showing game, when couldn't change terminal colors")
+
+(alexandria:define-constant +mino-colors+ '(:cyan :blue :orange :yellow :green :purple :red) :test #'equal)
+(alexandria:define-constant +alternative-mino-colors+ '(:cyan :blue :magenta :yellow :green :white :red) :test #'equal)
+
+(defvar *mino-colors* +mino-colors+)
+(defvar *colors* +colors+)
+
 (defun main ()
   (setf *random-state* (make-random-state t))
   (setf *game* (make-game :board
@@ -234,10 +252,17 @@
 			  :mino-and-position nil
 			  :lock (sb-thread:make-mutex))
 	*timer* (sb-ext:make-timer #'progress-game-timer-func))
+  ;; (unless (console:can-change-color)
+  ;;   (setf *colors* +alternative-colors+
+  ;; 	  *mino-colors* +alternative-mino-colors+))
   (console:with-color-console
-      nil
-      (loop for c in '(:black :red :green :yellow :blue :magenta :cyan :white)
+      (if (console:can-change-color)
+	  +additional-colors+
+	  nil)
+      (loop for c in (if (console:can-change-color) +colors+ +alternative-colors+)
 	 collect (list c c :default))
+    (unless (console:can-change-color)
+      (setf *mino-colors* +alternative-mino-colors+))
     (sb-ext:schedule-timer *timer* *timeout*)
     (loop
        do (let ((cmdchar (console:get-command)))
