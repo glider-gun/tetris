@@ -34,7 +34,8 @@
 
 (defun init-default-colors ()
   (setf *colors*
-	`((:black   . ,charms/ll:color_black)
+	`((:default . -1)
+	  (:black   . ,charms/ll:color_black)
 	  (:red     . ,charms/ll:color_red)
 	  (:green   . ,charms/ll:color_green)
 	  (:yellow  . ,charms/ll:color_yellow)
@@ -48,8 +49,8 @@
 (defun add-color (name r g b)
   "color: (:name r g b)"
   (assert (not (assoc name *colors*)))
-  (assert (= 0 (charms/ll:init-color (length *colors*) r g b)))
-  (push (cons name (length *colors*)) *colors*))
+  (assert (= 0 (charms/ll:init-color (1- (length *colors*)) r g b)))
+  (push (cons name (1- (length *colors*))) *colors*))
 
 (defun add-pair (name f b)
   (assert (assoc f *colors*))
@@ -67,6 +68,7 @@
      (charms:enable-non-blocking-mode charms:*standard-window*)
      (charms:enable-raw-input)
      (charms:enable-extra-keys charms:*standard-window*)
+     (charms/ll:use-default-colors)
 
      (init-default-colors)
      (init-default-pairs)

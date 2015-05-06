@@ -237,7 +237,7 @@
   (console:with-color-console
       nil
       (loop for c in '(:black :red :green :yellow :blue :magenta :cyan :white)
-	 collect (list c c :black))
+	 collect (list c c :default))
     (sb-ext:schedule-timer *timer* *timeout*)
     (loop
        do (let ((cmdchar (console:get-command)))
