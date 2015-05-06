@@ -20,21 +20,14 @@
 
 (defun get-command ()
   "get character, or arrow key (from ANSI escape sequence)"
-  (block nil
-    (let (c1 c2 c3)
-      (setf c1 (getch))
-      (when (not (eql c1 #\esc))
-	(return c1))
-      (setf c2 (getch))
-      (when (null c2)
-	(return #\esc))
-      (setf c3 (getch))
-      (case c3
-	(#\A :up)
-	(#\B :down)
-	(#\C :right)
-	(#\D :left)
-	(t :unknown)))))
+  (let ((c1 (getch)))
+    (when c1
+      (case (char-code c1)
+	(#.charms/ll:key_left  :left)
+	(#.charms/ll:key_right :right)
+	(#.charms/ll:key_up    :up)
+	(#.charms/ll:key_down  :down)
+	(t c1)))))
 
 (alexandria:define-constant +default-colors+
   '(:black :red :green :yellow :blue :magenta :cyan :white) :test #'equal)
@@ -73,6 +66,7 @@
      (charms:disable-echoing)
      (charms:enable-non-blocking-mode charms:*standard-window*)
      (charms:enable-raw-input)
+     (charms:enable-extra-keys charms:*standard-window*)
 
      (init-default-colors)
      (init-default-pairs)
