@@ -253,7 +253,7 @@
 			 (rotate-right)))
 	     (#\space (and (check-rotating-left)
 			  (rotate-left)))
-	     ((#\q #\etx)
+	     ((#\q #\etx #\esc)
 	      (setf (game-overp *game*) t)
 	      (return)))
 	   (when cmdchar
