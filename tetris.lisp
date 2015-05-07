@@ -191,6 +191,22 @@
 	  until (loop for x below w thereis (aref shape x y))
 	  finally (return y)))))
 
+(defun check-finish (game)
+  (or (game-overp game)
+      (let* ((board (game-board game))
+	     (w (array-dimension board 0)))
+	(loop for x below w thereis (aref board x (1- +TOP-ROOM+))))))
+
+(defmacro with-game-lock (&body body)
+  `(unwind-protect
+	(progn
+	  (let ((start (get-universal-time)))
+	    (loop for prev = (sb-ext:compare-and-swap (car (game-lock *game*)) nil t)
+	       while prev do (sleep 1e-3)
+	       when (> (- (get-universal-time) start) 3) do (cerror "from with-game-lock" "timeout")))
+	  ,@body)
+     (setf (car (game-lock *game*)) nil)))
+
 (defun progress-game ()
   (with-slots (board next-mino mino-and-position) *game*
     (if mino-and-position
@@ -204,23 +220,14 @@
 	      next-mino
 	      (random-mino)))))
 
-(defun check-finish (game)
-  (or (game-overp game)
-      (let* ((board (game-board game))
-	     (w (array-dimension board 0)))
-	(loop for x below w thereis (aref board x (1- +TOP-ROOM+))))))
-
-(defmacro with-game-lock (&body body)
-  `(sb-thread:with-mutex ((game-lock *game*))
-     ,@body))
-     
 (defvar *game*)
 (defvar *timer*)
 
 (defun progress-game-timer-func ()
   (unless (check-finish *game*)
-    (progress-game)
-    (show-game)
+    (with-game-lock
+      (progress-game)
+      (show-game))
     (sb-ext:schedule-timer *timer* *timeout*)))
 
 (alexandria:define-constant +additional-colors+
@@ -250,7 +257,7 @@
 			  (make-array (list +BOARD-WIDTH+ (+ +BOARD-HEIGHT+ +TOP-ROOM+)) :initial-element nil)
 			  :next-mino (random-mino)
 			  :mino-and-position nil
-			  :lock (sb-thread:make-mutex))
+			  :lock (list nil))
 	*timer* (sb-ext:make-timer #'progress-game-timer-func))
   ;; (unless (console:can-change-color)
   ;;   (setf *colors* +alternative-colors+
@@ -266,23 +273,23 @@
     (sb-ext:schedule-timer *timer* *timeout*)
     (loop
        do (let ((cmdchar (console:get-command)))
-	 (with-game-lock
-	   (case cmdchar
-	     (:right (and (check-going-right)
-			  (go-right)))
-	     (:left (and (check-going-left)
-			 (go-left)))
-	     (:down (and (check-going-down)
-			 (go-down)))
-	     (:up   (and (check-rotating-right)
-			 (rotate-right)))
-	     (#\space (and (check-rotating-left)
-			  (rotate-left)))
-	     ((#\q #\etx #\esc)
-	      (setf (game-overp *game*) t)
-	      (return)))
-	   (when cmdchar
-	     (show-game))))
+	    (with-game-lock
+	      (case cmdchar
+		(:right (and (check-going-right)
+			     (go-right)))
+		(:left (and (check-going-left)
+			    (go-left)))
+		(:down (and (check-going-down)
+			    (go-down)))
+		(:up   (and (check-rotating-right)
+			    (rotate-right)))
+		(#\space (and (check-rotating-left)
+			      (rotate-left)))
+		((#\q #\esc)
+		 (setf (game-overp *game*) t)
+		 (return)))
+	      (when cmdchar
+		(show-game))))
        until (check-finish *game*)
        finally (progn (show-game) (sleep 3))))
   (format t "~D~%" (game-score *game*))
@@ -294,7 +301,7 @@
 	       (loop for y from (- +TOP-ROOM+ +TOP+) below h do
 		    (progn
 		      (console:move-to +LEFT+ (+ +TOP+ (- y +TOP-ROOM+)))
-			(console:write-at-cursor (if (>= y +TOP-ROOM+) "|" " ") :color-pair :white))
+		      (console:write-at-cursor (if (>= y +TOP-ROOM+) "|" " ") :color-pair :white))
 		    (loop for x below w
 		       for c = (aref (game-board *game*) x y)
 		       do (if c
@@ -333,14 +340,14 @@
 	     (show-game-over ()
 	       (console:move-to +LEFT+ (+ +TOP+ (array-dimension (game-board *game*) 1) 2))
 	       (console:write-at-cursor "game over")))
-    (console:clear)
-    (show-next-mino)
-    (show-board)
-    (show-mino-in-progress)
-    (show-score)
-    (when (check-finish *game*)
-      (show-game-over))
-    (console:refresh))))
+      (console:clear)
+      (show-next-mino)
+      (show-board)
+      (show-mino-in-progress)
+      (show-score)
+      (when (check-finish *game*)
+	(show-game-over))
+      (console:refresh))))
 
 (defun make-tetris-command (&optional (name "tetris"))
   (sb-ext:save-lisp-and-die
