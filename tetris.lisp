@@ -1,4 +1,6 @@
 ;;;; tetris.lisp
+(declaim (optimize (debug 3)))
+
 (in-package #:tetris)
 
 (deftype color ()
@@ -197,15 +199,19 @@
 	     (w (array-dimension board 0)))
 	(loop for x below w thereis (aref board x (1- +TOP-ROOM+))))))
 
+;; (defmacro with-game-lock (&body body)
+;;   `(unwind-protect
+;; 	(progn
+;; 	  (let ((start (get-universal-time)))
+;; 	    (loop for prev = (sb-ext:compare-and-swap (car (game-lock *game*)) nil t)
+;; 	       while prev do (sleep 1e-3)
+;; 	       when (> (- (get-universal-time) start) 3) do (cerror "from with-game-lock" "timeout")))
+;; 	  ,@body)
+;;      (setf (car (game-lock *game*)) nil)))
+
 (defmacro with-game-lock (&body body)
-  `(unwind-protect
-	(progn
-	  (let ((start (get-universal-time)))
-	    (loop for prev = (sb-ext:compare-and-swap (car (game-lock *game*)) nil t)
-	       while prev do (sleep 1e-3)
-	       when (> (- (get-universal-time) start) 3) do (cerror "from with-game-lock" "timeout")))
-	  ,@body)
-     (setf (car (game-lock *game*)) nil)))
+  `(sb-thread:with-mutex ((game-lock *game*))
+    ,@body))
 
 (defun progress-game ()
   (with-slots (board next-mino mino-and-position) *game*
@@ -221,14 +227,16 @@
 	      (random-mino)))))
 
 (defvar *game*)
-(defvar *timer*)
+(defvar *progress-thread*)
 
-(defun progress-game-timer-func ()
+(defun progress-game-func (window)
   (unless (check-finish *game*)
     (with-game-lock
-      (progress-game)
-      (show-game))
-    (sb-ext:schedule-timer *timer* *timeout*)))
+      (let ((cl-charms:*STANDARD-WINDOW* window))
+	(progress-game)
+	(show-game)))
+    (sleep *timeout*)
+    (progress-game-func window)))
 
 (alexandria:define-constant +additional-colors+
   '((:orange 1000 550 0)
@@ -252,13 +260,8 @@
 (defvar *colors* +colors+)
 
 (defun main ()
+  (declare (optimize debug))
   (setf *random-state* (make-random-state t))
-  (setf *game* (make-game :board
-			  (make-array (list +BOARD-WIDTH+ (+ +BOARD-HEIGHT+ +TOP-ROOM+)) :initial-element nil)
-			  :next-mino (random-mino)
-			  :mino-and-position nil
-			  :lock (list nil))
-	*timer* (sb-ext:make-timer #'progress-game-timer-func))
   ;; (unless (console:can-change-color)
   ;;   (setf *colors* +alternative-colors+
   ;; 	  *mino-colors* +alternative-mino-colors+))
@@ -268,9 +271,20 @@
 	  nil)
       (loop for c in (if (console:can-change-color) +colors+ +alternative-colors+)
 	 collect (list c c :default))
+
+    (setf *game* (make-game :board
+			    (make-array (list +BOARD-WIDTH+ (+ +BOARD-HEIGHT+ +TOP-ROOM+))
+					:initial-element nil)
+			    :next-mino (random-mino)
+			    :mino-and-position nil
+			    :lock (sb-thread:make-mutex)))
+    (setf *progress-thread* (sb-thread:make-thread
+			     #'progress-game-func
+			     :arguments (list cl-charms:*STANDARD-WINDOW*)))
+
     (unless (console:can-change-color)
       (setf *mino-colors* +alternative-mino-colors+))
-    (sb-ext:schedule-timer *timer* *timeout*)
+    ;; (sb-ext:schedule-timer *timer* *timeout*)
     (loop
        do (let ((cmdchar (console:get-command)))
 	    (with-game-lock
@@ -291,7 +305,7 @@
 	      (when cmdchar
 		(show-game))))
        until (check-finish *game*)
-       finally (progn (show-game) (sleep 3))))
+       finally (progn (sb-thread:join-thread *progress-thread*) (show-game) (sleep 3))))
   (format t "~D~%" (game-score *game*))
   (finish-output))
 
