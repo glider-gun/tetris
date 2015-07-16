@@ -153,4 +153,4 @@
   (charms:refresh-window charms:*standard-window*))
 
 (defun can-change-color ()
-  (= 1 (ldb (byte 8 0) (charms/ll:can-change-color))))
+  (= 1 (charms/ll:can-change-color)))
