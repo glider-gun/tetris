@@ -1,6 +1,4 @@
 ;;;; tetris.lisp
-(declaim (optimize (debug 3)))
-
 (in-package #:tetris)
 
 (deftype color ()
