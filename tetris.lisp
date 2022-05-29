@@ -287,13 +287,13 @@
        do (let ((cmdchar (console:get-command)))
 	    (with-game-lock
 	      (case cmdchar
-		(:right (and (check-going-right)
+    ((#\d :right) (and (check-going-right)
 			     (go-right)))
-		(:left (and (check-going-left)
+		((#\a :left) (and (check-going-left)
 			    (go-left)))
-		(:down (and (check-going-down)
+		((#\s :down) (and (check-going-down)
 			    (go-down)))
-		(:up   (and (check-rotating-right)
+		((#\w :up)   (and (check-rotating-right)
 			    (rotate-right)))
 		(#\space (and (check-rotating-left)
 			      (rotate-left)))
